@@ -1,35 +1,25 @@
 library(tidyverse)
-library(scales)
 library(cowplot)
-library(ggstance)
 library(car)
-library(basemaps)
-library(ggmap)
-library(sf)
-library(sp)
-library(gstat)
 library(vegan)
 set_null_device("cairo")
 
-##### Plots ######
-malcol=rgb(0/255,0/255,139/255)
-hetcol=rgb(65/255,105/255,225/255)
-bircol=rgb(255/255,0/255,0/255)
-viridis_scale = "rocket"
-hex <- hue_pal()(4)
-names(hex) = c("Calnali", "Conzintla", "Huazalingo", "Pochula")
-
+# Colors to be used for different drainages - keeping Calnali together
 river_colors <- c('#8B1E3F','#89BD9E','#EBB65C','#DB4C40')
 names(river_colors) <- c("Calnali","Conzintla", "Huazalingo","Pochula")
 
+# Utility to check for numeric values - useful for parsing cases where numerics  
+# not initially parsed successfully because of "<" signs present in ICP/MS data
 is_all_numeric <- function(x) {
   !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
 }
 
-site_distances <- read.csv("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/site_riverkm_distances.csv") %>%
+# Loading geographic data
+site_distances <- read.csv("site_riverkm_distances.csv") %>%
   dplyr::select(-Drainage)
 
-water_chemistry <- read.csv("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/waterchem_with_averagedsonde_labmetals_data.csv") %>%
+# Loading water quality data data
+water_chemistry <- read.csv("waterchem_with_averagedsonde_labmetals_data.csv") %>%
   filter(Site.Code != "N/A", !Date %in% c("15-Jun-22","16-Jun-22")) %>%
   mutate(day = sapply(Date, function(x) strsplit(x, split = "-")[[1]][1]),
          month = sapply(Date, function(x) strsplit(x, split = "-")[[1]][2]),
@@ -47,7 +37,11 @@ water_chemistry <- as.data.frame(apply(water_chemistry, 2,
 
 
 
-###### Individual Variable Plots ######
+### Statistical tests showing variables which were significantly different between drainages
+
+# First, variables highest in the downstream Calnali
+# Metals data are analyzed with Kruskal-Wallis test because 
+# censored values have no meaningful point estimate, only ordination
 
 kruskal.test(Cu_t ~ Drainage, water_chemistry)
 
@@ -86,6 +80,8 @@ shapiro.test(turb_model$residuals)
 Anova(turb_model)
 TukeyHSD(turb_model, which = "Drainage")
 
+# Now variables showing other patterns 
+
 kruskal.test(Mn_t ~ Drainage, water_chemistry)
 
 
@@ -99,6 +95,26 @@ plot(cond_model)
 shapiro.test(cond_model$residuals)
 Anova(cond_model)
 TukeyHSD(cond_model)
+
+alk_model <- aov(Alkalinity ~ Drainage * month, data = water_chemistry)
+plot(alk_model)
+shapiro.test(alk_model$residuals)
+Anova(alk_model)
+TukeyHSD(alk_model)
+
+hard_model <- aov(Total_Hardness ~ Drainage * month, data = water_chemistry)
+plot(hard_model)
+shapiro.test(hard_model$residuals)
+Anova(hard_model)
+TukeyHSD(hard_model)
+
+pH_model <- aov(pH ~ Drainage * month, data = water_chemistry)
+plot(pH_model)
+shapiro.test(pH_model$residuals)
+Anova(pH_model)
+TukeyHSD(pH_model)
+
+###### Individual Variable Plots from Main Text ######
 
 water_chemistry_nosplit <- water_chemistry %>%
   mutate(Drainage = ifelse(Drainage == "Calnali - Downstream", "Calnali", ifelse(Drainage == "Calnali - Upstream", "Calnali", Drainage)))
@@ -114,12 +130,12 @@ DOMplot <- ggplot(water_chemistry_nosplit,
         legend.position = "inside",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Dissolved Organic Matter (QSU)") +
+  labs(x = "Stream Distance (km)", y = "Dissolved Organic Matter (QSU)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 DOMplot
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/fDOM_riverkm_multiriver.pdf",
+ggsave("fDOM_riverkm_multiriver.pdf",
        DOMplot, device = "pdf", width = 7, height = 5.5)
 
 nh3plot <- ggplot(filter(water_chemistry_nosplit, Drainage %in% c("Calnali", "Pochula", "Huazalingo", "Conzintla"), !(month == "Jun")),
@@ -131,20 +147,24 @@ nh3plot <- ggplot(filter(water_chemistry_nosplit, Drainage %in% c("Calnali", "Po
         legend.title = element_text(size = 24),
         legend.position = "inside",
         legend.text = element_text(size = 20),
-        legend.position.inside = c(.2, .8)) +
-  labs(x = "River Distance (km)", y = "Ammonia (mg/L N)") +
+        legend.position.inside = c(.25, .8)) +
+  labs(x = "Stream Distance (km)", y = "Ammonia (mg/L N)") +
   #lims(y = c(0,5)) +
   scale_color_manual(values = river_colors) +
   scale_y_log10(labels = label_number(accuracy = .01)) +
   #annotate("text", x = 12, y = 5, label = "Outlier at 31 mg/L N", size = 6) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 nh3plot
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/nh3_riverkm_multiriver.pdf",
+ggsave("nh3_riverkm_multiriver.pdf",
        nh3plot, device = "pdf", width = 7, height = 5.5)
 
-water_chem_censored_raw <- read.csv("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/waterchem_with_averagedsonde_labmetals_data.csv") %>%
+
+### Visualization of metals data with censored values (those below the detection limit) requires special treatment
+# Censored values are included to show mmeasurements were taken, but position on Y-axis is arbitrary
+
+water_chem_censored_raw <- read.csv("waterchem_with_averagedsonde_labmetals_data.csv") %>%
   filter(Site.Code != "N/A", !Date %in% c("15-Jun-22","16-Jun-22")) %>%
   mutate(day = sapply(Date, function(x) strsplit(x, split = "-")[[1]][1]),
          month = sapply(Date, function(x) strsplit(x, split = "-")[[1]][2]),
@@ -166,6 +186,7 @@ water_chem_censored_values <- as.data.frame(apply(water_chem_censored_values, 2,
                                          })) %>%
   mutate_if(is_all_numeric,as.numeric)
 
+
 Cu_censored <- water_chemistry_nosplit %>%
   filter(Cu_t == 0.00025) %>%
   group_by(round(dist_from_first_site_km, 1)) %>%
@@ -179,22 +200,26 @@ Cuplot <- ggplot(filter(water_chemistry_nosplit, Cu_t != .00025),
   theme_bw() +
   theme(axis.title = element_text(size = 24),
         axis.text = element_text(size = 16),
-        legend.title = element_text(size = 20),
-        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 24),
+        legend.text = element_text(size = 20),
         legend.position = "inside",
-        legend.position.inside = c(.2, .8)) +
+        legend.position.inside = c(.25, .8)) +
   scale_color_manual(values = river_colors, drop = F) +
-  labs(x = "River Distance (km)", y = "Total Copper (ug/L)") +
+  labs(x = "Stream Distance (km)", y = "Total Copper (ug/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River", override.aes = list(shape = 16))) +
-  geom_hline(yintercept = 0.5, lty = "dashed", color = "darkgray") +
+  guides(color=guide_legend(title="Drainage", override.aes = list(shape = 16))) +
+  geom_hline(yintercept = 0.5, lty = "dashed", color = "darkgray", linewidth = 2) +
   geom_point(data = Cu_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = .0005 * 1000, alpha = .5,fill = "white") +
   geom_jitter(aes(color = Drainage), size = 2)
   Cuplot
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/Cu_riverkm_multiriver.pdf",
+ggsave("Cu_riverkm_multiriver.pdf",
        Cuplot, device = pdf, width = 7, height = 5.5)
+
+
+
 #### Supplemental Figures #####
+# Fig S21
 
 turbplot <- ggplot(water_chemistry_nosplit,
                   aes(x = dist_from_first_site_km, y = Turbidity)) +
@@ -204,9 +229,9 @@ turbplot <- ggplot(water_chemistry_nosplit,
         legend.position = "inside",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Turbidity (NTU)") +
+  labs(x = "Stream Distance (km)", y = "Turbidity (NTU)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 turbplot
 
@@ -218,16 +243,17 @@ no2plot <- ggplot(water_chemistry_nosplit,
     legend.position = "inside",
     legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Nitrite (mg/L N)") +
+  labs(x = "Stream Distance (km)", y = "Nitrite (mg/L N)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 no2plot
 
 calnali_diff_nonmetals <- plot_grid(turbplot, no2plot, nrow = 2, labels = "AUTO")
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/Turb_NO2_riverkm_multiriver.pdf",
-       calnali_diff_nonmetals, device = "pdf", width =6.5, height = 8)
+ggsave("Turb_NO2_riverkm_multiriver.png",
+       calnali_diff_nonmetals, device = "png", width =6.5, height = 8)
 
+# Fig S22
 
 condplot <- ggplot(water_chemistry_nosplit,
                    aes(x = dist_from_first_site_km, y = Conductivity)) +
@@ -239,9 +265,9 @@ condplot <- ggplot(water_chemistry_nosplit,
     legend.position = "none",
     legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Conductivity\n(μS/cm)") +
+  labs(x = "Stream Distance (km)", y = "Conductivity\n(μS/cm)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 condplot
 
@@ -255,9 +281,9 @@ alkplot <- ggplot(water_chemistry_nosplit,
     legend.position = "none",
     legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = expression(atop("Alkalinity","(mg"~CaCO[3]~"Eq.)"))) +
+  labs(x = "Stream Distance (km)", y = expression(atop("Alkalinity","(mg"~CaCO[3]~"Eq.)"))) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 alkplot
 
@@ -271,9 +297,9 @@ hardplot <- ggplot(water_chemistry_nosplit,
     legend.position = "none",
     legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = expression(atop("Hardness","(mg"~CaCO[3]~"Eq.)"))) +
+  labs(x = "Stream Distance (km)", y = expression(atop("Hardness","(mg"~CaCO[3]~"Eq.)"))) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 hardplot
 
@@ -286,17 +312,17 @@ pHplot <- ggplot(water_chemistry_nosplit,
     legend.direction = "horizontal",
     legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "pH") +
+  labs(x = "Stream Distance (km)", y = "pH") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage))
 pHplot
 
 nonmetals_other <- plot_grid(condplot, alkplot, hardplot, pHplot, nrow = 4, labels = "AUTO", rel_heights = c(1,1,1,1.5), align = "v")
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/cond_alk_hard_pH_riverkm_multiriver.png",
+ggsave("cond_alk_hard_pH_riverkm_multiriver.png",
        nonmetals_other, device = "png", width =6.5, height = 8)
 
-
+# Fig S23
 
 Fe_censored <- water_chemistry_nosplit %>%
   filter(Fe_t == 0.005) %>%
@@ -317,9 +343,9 @@ Feplot <- ggplot(filter(water_chemistry_nosplit, Fe_t != 0.005),
         legend.position = "inside",
         legend.position.inside = c(.25, .72)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Iron (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Iron (μg/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_hline(yintercept = 0.01 * 1000, lty = "dashed", color = "darkgray") +
   geom_point(data = Fe_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = .01 * 1000, alpha = .5,fill = "white") +
@@ -338,9 +364,9 @@ Alplot <- ggplot(filter(water_chemistry_nosplit),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Aluminum (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Aluminum (μg/L)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 Alplot
 
@@ -361,9 +387,9 @@ Pbplot <- ggplot(filter(water_chemistry_nosplit, Pb_t != 0.00005/2),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Lead (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Lead (μg/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Pb_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   geom_hline(yintercept = 0.00005 * 1000, lty = "dashed", color = "darkgray") +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = 0.00005 * 1000, alpha = .5,fill = "white") +
@@ -387,9 +413,9 @@ Tiplot <- ggplot(filter(water_chem_censored_raw, !grepl("<", Ti_t)),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Titanium (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Titanium (μg/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Ti_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   geom_hline(yintercept = 0.0003 * 1000, lty = "dashed", color = "darkgray") +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = 0.0003 * 1000, alpha = .5,fill = "white") +
@@ -414,9 +440,9 @@ Znplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",Zn_t)),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Zinc (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Zinc (μg/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Zn_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   geom_hline(yintercept = max(as.numeric(str_remove(Zn_censored$Zn_t, "<"))) * 1000, lty = "dashed", color = "darkgray") +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = max(as.numeric(str_remove(Zn_censored$Zn_t, "<"))) * 1000, alpha = .5,fill = "white") +
@@ -441,9 +467,9 @@ Coplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",Co_t)),
     legend.position = "none",
     legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Cobalt (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Cobalt (μg/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Co_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   geom_hline(yintercept = max(as.numeric(str_remove(Co_censored$Co_t, "<"))) * 1000, lty = "dashed", color = "darkgray") +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = max(as.numeric(str_remove(Co_censored$Co_t, "<"))) * 1000, alpha = .5,fill = "white") +
@@ -452,8 +478,10 @@ Coplot
 
 metals_highcalnali <- plot_grid(Feplot, Alplot, Pbplot, Tiplot, Znplot, Coplot, nrow = 3, labels = "AUTO", rel_heights = c(1,1,1,1.25), align = "v")
 metals_highcalnali
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/Fe_Al_Ti_Zn_Co_riverkm_multiriver.png",
+ggsave("Fe_Al_Ti_Zn_Co_riverkm_multiriver.png",
        metals_highcalnali, device = "png", width =6.5, height = 8)
+
+# Fig S24
 
 Cd_censored <- water_chem_censored_raw %>%
   filter(grepl('<', Cd_t)) %>%
@@ -473,9 +501,9 @@ Cdplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",Cd_t)),
     legend.position = "none",
     legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Cadmium (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Cadmium (μg/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Cd_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   geom_hline(yintercept = max(as.numeric(str_remove(Cd_censored$Cd_t, "<"))) * 1000, lty = "dashed", color = "darkgray") +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = max(as.numeric(str_remove(Cd_censored$Cd_t, "<"))) * 1000, alpha = .5,fill = "white") +
@@ -501,9 +529,9 @@ Mnplot <- ggplot(filter(water_chemistry_nosplit),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Manganese (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Manganese (μg/L)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 Mnplot
 
@@ -525,9 +553,9 @@ Asplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",As_t)),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Arsenic (μg/L)") +
+  labs(x = "Stream Distance (km)", y = "Arsenic (μg/L)") +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_point(data = As_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
   geom_hline(yintercept = max(as.numeric(str_remove(As_censored$As_t, "<"))) * 1000, lty = "dashed", color = "darkgray") +
   annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = max(as.numeric(str_remove(As_censored$As_t, "<"))) * 1000, alpha = .5,fill = "white") +
@@ -546,9 +574,9 @@ Caplot <- ggplot(filter(water_chemistry_nosplit),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Calcium (mg/L)") +
+  labs(x = "Stream Distance (km)", y = "Calcium (mg/L)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 Caplot
 
@@ -562,9 +590,9 @@ Mgplot <- ggplot(filter(water_chemistry_nosplit),
         legend.position = "none",
         legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Magnesium (mg/L)") +
+  labs(x = "Stream Distance (km)", y = "Magnesium (mg/L)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 Mgplot
 
@@ -578,9 +606,9 @@ Siplot <- ggplot(filter(water_chemistry_nosplit),
     legend.position = "none",
     legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Silicon (mg/L)") +
+  labs(x = "Stream Distance (km)", y = "Silicon (mg/L)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 Siplot
 
@@ -592,9 +620,9 @@ dummy_Siplot <- ggplot(filter(water_chemistry_nosplit),
     legend.position = "bottom",
     legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
-  labs(x = "River Distance (km)", y = "Silicon (mg/L)") +
+  labs(x = "Stream Distance (km)", y = "Silicon (mg/L)") +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-  guides(color=guide_legend(title="River")) +
+  guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 dummy_Siplot
 
@@ -620,11 +648,11 @@ leg_plot
 metals_other <- plot_grid(Cdplot, Mnplot, Asplot, Caplot, Mgplot, Siplot, nrow = 3, labels = "AUTO", rel_heights = c(1,1,1.25), align = "v")
 metals_other_wleg <- plot_grid(metals_other, leg, nrow = 2, rel_heights = c(15, 1))
 metals_other_wleg
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/Cd_Mn_As_Ca_Mg_riverkm_multiriver.png",
+ggsave("Cd_Mn_As_Ca_Mg_riverkm_multiriver.png",
        metals_other_wleg, device = "png", width =6.5, height = 8)
 
-
-test <- map(names(water_chemistry_nosplit)[grepl("_t", names(water_chemistry_nosplit))], function(name) {
+# Rough plots of each ICP/MS variable, for the curious
+allICPMS_plots <- map(names(water_chemistry_nosplit)[grepl("_t", names(water_chemistry_nosplit))], function(name) {
   ggplot(filter(water_chemistry_nosplit),
          aes_string(x = "dist_from_first_site_km", y = name)) +
     coord_cartesian(x = c(0, 20)) +
@@ -633,14 +661,15 @@ test <- map(names(water_chemistry_nosplit)[grepl("_t", names(water_chemistry_nos
       legend.position = "none",
       legend.direction = "horizontal") +
     scale_color_manual(values = river_colors) +
-    labs(x = "River Distance (km)", y = name) +
+    labs(x = "Stream Distance (km)", y = name) +
     geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
-    guides(color=guide_legend(title="River")) +
+    guides(color=guide_legend(title="Drainage")) +
     geom_jitter(aes(color = Drainage)) #+
 })
-test
+allICPMS_plots
 
+# Sample sizes per site
 sample_sizes <- water_chemistry_nosplit %>%
   group_by(Site.Code) %>%
   summarize(across(DO_sat:Zr_t, function(x) sum(!is.na(x))))
-write.csv(sample_sizes, "Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/waterchem_samplesizes.csv", sep = ",")
+write.csv(sample_sizes, "waterchem_samplesizes.csv", sep = ",")

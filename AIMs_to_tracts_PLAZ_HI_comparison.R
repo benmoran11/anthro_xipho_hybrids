@@ -1,25 +1,29 @@
-setwd("Documents/schumer_lab/")
 library(tidyverse)
 
 options(scipen=999)
 
-infile <- "~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/genotypes_PLAZ.tsv_plot.txt"
-ids<-"~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/PLAZ_id_list"
-outfile<-"~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/ancestry_tracts_PLAZ.txt"
+### Placeholder variables to be changed to match position of files locally
+infile <- "genotypes_PLAZ.tsv_plot.txt"
+ids<-"PLAZ_id_list"
+outfile<-"ancestry_tracts_PLAZ.txt"
 
+
+### Load list of individuals 
 indivs<-read.table(file=ids,sep="\t",head=TRUE)
 indivs<-indivs[,1]
+### Remove individuals that failed to sequence
 indivs<-indivs[!grepl("PLAZ_61_F_read_1.fastq", indivs)]
 indivs<-indivs[!grepl("PLAZ_64_F_read_1.fastq", indivs)]
 
-
+### Load local ancestry data from PLAZ
 data<-read.table(file=infile,sep="\t",head=TRUE,as.is=T)
+### Remove individuals that failed to sequence
 data<-subset(data, select=-c(PLAZ_61_F_read_1.fastq,PLAZ_64_F_read_1.fastq))
 
 data_diploid <- filter(data, !(chrom %in% ("chr-21-Y")))
 
+# Now calculate tracts based on genotypes at each ancestry-informative marker
 alltracts <- {}
-
 
 for(c in unique(data_diploid$chrom)) {
   
@@ -60,7 +64,7 @@ for(y in 1:length(indivs)){
 
 write.table(alltracts,file=outfile,sep="\t",row.names=FALSE,col.names=c("chr","start","stop","ancestry","indiv"),quote=FALSE)
 
-
+# Summary stats of tracts
 indiv_mean_genomewide <- as.data.frame(alltracts) %>% 
   mutate(start = as.numeric(start),
          stop = as.numeric(stop),
@@ -68,6 +72,7 @@ indiv_mean_genomewide <- as.data.frame(alltracts) %>%
   group_by(focalid) %>%
   summarize(mean_anc_tract = weighted.mean(geno_curr, w = stop-start, na.rm = T) / 2)
 
+# now hybrid indexes based on counts of AIMs - to compare to tract-based estimates
 AIMs <- read.csv("PLAZ_hybrid_index_readcounts.csv") %>%
   filter(!(X %in% c("PLAZ_61_F_read_1.fastq", "PLAZ_64_F_read_1.fastq"))) %>%
   rename(`focalid` = X) %>%
@@ -87,5 +92,5 @@ compare_ancsumms <- ggplot(AIMs, aes(x = hybrid_index, y = mean_anc_tract)) +
   #geom_smooth(method = "lm", se = F) +
   geom_point()
 compare_ancsumms
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/compare_ancsumms.pdf",
+ggsave("compare_ancsumms.pdf",
        compare_ancsumms, width = 4, height = 4)

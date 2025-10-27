@@ -2,75 +2,78 @@ library(tidyverse)
 library(cowplot)
 library(vegan)
 
-malcol=rgb(0/255,0/255,139/255)
-hetcol=rgb(65/255,105/255,225/255)
-bircol=rgb(255/255,0/255,0/255)
-viridis_scale = "rocket"
-hex <- hue_pal()(4)
-names(hex) = c("Calnali", "Conzintla", "Huazalingo", "Pochula")
+# Colors to be used for different drainages - keeping Calnali together
 river_colors <- c('#8B1E3F','#89BD9E','#EBB65C','#DB4C40')
 names(river_colors) <- c("Calnali","Conzintla", "Huazalingo","Pochula")
 
+# Utility to check for numeric values - useful for parsing cases where numerics  
+# not initially parsed successfully because of "<" signs present in ICP/MS data
 is_all_numeric <- function(x) {
   !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
 }
 
-site_distances <- read.csv("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/site_riverkm_distances.csv") %>%
+# Loading site distances along river
+site_distances <- read.csv("site_riverkm_distances.csv") %>%
   dplyr::select(-Drainage)
 
-water_chemistry <- read.csv("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/waterchem_with_averagedsonde_labmetals_data.csv") %>%
+# And water chemistry data
+water_chemistry <- read.csv("waterchem_with_averagedsonde_labmetals_data.csv") %>%
   filter(Site.Code != "N/A", !Date %in% c("15-Jun-22","16-Jun-22")) %>%
   mutate(day = sapply(Date, function(x) strsplit(x, split = "-")[[1]][1]),
          month = sapply(Date, function(x) strsplit(x, split = "-")[[1]][2]),
          year = sapply(Date, function(x) strsplit(x, split = "-")[[1]][3]),
          dist_from_hybridstart = ifelse(Drainage == "Calnali", Lon - -98.585, ifelse(Drainage == "Conzintla", Lon - -98.62412, ifelse(Drainage == "Pochula", Lon - -98.57946, ifelse(Drainage == "Huazalingo", Lon - -98.63713, NA)))),
-         Turbidity = ifelse(Turbidity_instrument == "orion", Turbidity, NA),
+         Turbidity = ifelse(Turbidity_instrument == "orion", Turbidity, NA), # removing measurements from a different turbidity meter - not comparable to other measurements
          Drainage = ifelse(Site.Code %in% c("PEZM", "CAPS", "PLAZ","CALL", "TLCD"), "Calnali - Downstream", ifelse(Drainage == "Calnali", "Calnali - Upstream", Drainage))) %>%
-  filter(year %in% c(22,23,24)) %>%
-  filter(!(month == "Sep")) %>%
+  filter(year %in% c(22,23,24)) %>% # removing early years with more limited measurements - large number of NAs limit PCA variables
+  filter(!(month == "Sep")) %>%  # removing data from the rainy season in this analysis
   left_join(site_distances)
-#set.seed(64)
+
 water_chemistry <- as.data.frame(apply(water_chemistry, 2,
                                        FUN = function(x) ifelse(grepl("<",x), as.numeric(str_remove(x, "<"))/2, ifelse(x == "", NA, x)))) %>%
   #FUN = function(x) ifelse(grepl("<",x), runif(1, min = 0, max = as.numeric(str_remove(x, "<"))), ifelse(x == "", NA, x)))) %>%
   #FUN = function(x) ifelse(grepl("<",x), 0, ifelse(x == "", NA, x)))) %>%
+  #FUN = function(x) ifelse(grepl("<",x), as.numeric(str_remove(x, "<")), ifelse(x == "", NA, x)))) %>%
+  # ^ each of the above lines was used to test whether the choice of arbitrary value to substitute for ICP/MS measurements
+  # below the detection limit (default 1/2 of detection limit) affected statistical outcomes; change the line that is not
+  # commented out to recreate the results of Tables S10-12
   mutate_if(is_all_numeric,as.numeric)
 
-sites_drainages <- read.csv("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/all_sites_coords_PAPA_HZNP_Conz.csv")
+# Loading site coordinate data
+sites_drainages <- read.csv("all_sites_coords_PAPA_HZNP_Conz.csv")
 
 ## And now land use
 
-#landuse_fullwatershed <- readxl::read_xlsx("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/LandUse_Sentinel_APXC_full_2020s_Spe18Spa19min20_202412141134378024739_PixelCounts_Watersheds.xlsx",
-#                                           na = "NA") %>%
-landuse_fullwatershed <- read.table("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/Subcatchment_LandUse_full.csv", sep = ",", header = T) %>%
+# Land use stats within the entire upstream subcatchment
+landuse_fullwatershed <- read.table("Subcatchment_LandUse_full.csv", sep = ",", header = T) %>%
   left_join(site_distances) %>%
   mutate(prop_misclassified_total = Misclassified_developed/Total_pixels,
          prop_misclassified_developed = Misclassified_developed/developed) %>%
   left_join(sites_drainages)
-#landuse_500m <- readxl::read_xlsx("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/LandUse_Sentinel_APXC_full_2020s_Spe18Spa19min20_202412141134378024739_PixelCounts_Watersheds_half_km_buffer.xlsx",
-#                                  na = "NA") %>%
-landuse_500m <- read.table("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/Subcatchment_LandUse_500m.csv", sep = ",", header = T) %>%
+
+# Land use stats within a 500 m buffer around streams
+landuse_500m <- read.table("Subcatchment_LandUse_500m.csv", sep = ",", header = T) %>%
   left_join( site_distances) %>%
   mutate(prop_misclassified_total = Misclassified_developed/Total_pixels,
          prop_misclassified_developed = Misclassified_developed/developed) %>%
   left_join(sites_drainages)
-#landuse_100m <- readxl::read_xlsx("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/LandUse_Sentinel_APXC_full_2020s_Spe18Spa19min20_202412141134378024739_PixelCounts_Watersheds_100mBuffer.xlsx",
-#                                  na = "NA") %>%
-landuse_100m <- read.table("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/Subcatchment_LandUse_100m.csv", sep = ",", header = T) %>%
+
+# Land use stats within a 100 m buffer around streams
+landuse_100m <- read.table("Subcatchment_LandUse_100m.csv", sep = ",", header = T) %>%
   left_join( site_distances) %>%
   mutate(prop_misclassified_total = Misclassified_developed/Total_pixels,
          prop_misclassified_developed = Misclassified_developed/developed) %>%
   left_join(sites_drainages)
-#landuse_50m <- readxl::read_xlsx("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/LandUse_Sentinel_APXC_full_2020s_Spe18Spa19min20_202412141134378024739_PixelCounts_Watersheds_50mBuffer.xlsx",
-#                                 na = "NA") %>%
-landuse_50m <- read.table("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Data/Subcatchment_LandUse_50m.csv", sep = ",", header = T) %>%
+
+# Land use stats within a 50 m buffer around streams
+landuse_50m <- read.table("Subcatchment_LandUse_50m.csv", sep = ",", header = T) %>%
   left_join( site_distances) %>%
   mutate(prop_misclassified_total = Misclassified_developed/Total_pixels,
          prop_misclassified_developed = Misclassified_developed/developed) %>%
   left_join(sites_drainages)
 
 
-# Loading in water chem data
+# Summarizeing water chem data as PCs and attaching to land use data
 
 pca_ready_siteavgs <- water_chemistry %>%
   filter(!(Site.Code %in% c("TLMC", "COAC")),
@@ -91,7 +94,6 @@ pca_ready_siteavgs <- water_chemistry %>%
 all.pca <- prcomp(pca_ready_siteavgs[,4:44], center = TRUE,scale. = TRUE)
 major_axes <- cbind(pca_ready_siteavgs,all.pca$x[, 1:4])
 
-
 pca_ready_siteavgs_nosplit <- pca_ready_siteavgs %>%
   mutate(Drainage = ifelse(Drainage == "Calnali - Downstream", "Calnali", ifelse(Drainage == "Calnali - Upstream", "Calnali", Drainage)))
 major_axes_nosplit <- major_axes %>% 
@@ -110,7 +112,7 @@ landuse_chem_50m <- left_join(landuse_50m, pca_ready_siteavgs_nosplit) %>%
   mutate(cum_total_km2 = Cum_total / 10000)
 
 
-
+# Plotting developed land within each subcatchment for different buffer sizes
 developed_plot <- ggplot(filter(landuse_fullwatershed, Drainage %in% c("Calnali", "Pochula", "Huazalingo", "Conzintla")),
                          aes(x = elevation, y = corrected_prop_developed * 100)) +
   theme_bw() +
@@ -164,7 +166,7 @@ developed_plot_50m <- ggplot(filter(landuse_50m, Drainage %in% c("Calnali", "Poc
   geom_jitter(aes(color = Drainage)) #+
 developed_plot_50m
 
-#### Cumulative Input now
+#### Now cumulative land use in all upstream subcatchments
 
 developed_plot_cum_full <- ggplot(filter(landuse_fullwatershed, Drainage %in% c("Calnali", "Pochula", "Huazalingo", "Conzintla")),
                              aes(x = elevation, y = corrected_cumprop_developed * 100)) +
@@ -249,6 +251,7 @@ get_legend_35 <- function(plot, legend_number = 1) {
   }
 }
 
+# Combining into one mega-plot
 leg <- get_legend_35(dummy_developed_plot_cum_50m)
 all_developed_plots <- plot_grid(developed_plot, developed_plot_cum_full,
           developed_plot_500m, developed_plot_cum_500m,
@@ -257,7 +260,7 @@ all_developed_plots <- plot_grid(developed_plot, developed_plot_cum_full,
           nrow = 4, labels = "AUTO")
 all_developed_plots_wleg <- plot_grid(all_developed_plots, leg, nrow = 2, rel_heights = c(15, 1))
 all_developed_plots_wleg
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/developed_land_megaplot.pdf",
+ggsave("developed_land_megaplot.pdf",
        all_developed_plots_wleg, device = "pdf", width =6.5, height = 8)
 
 
@@ -413,20 +416,8 @@ all_herb_plots <- plot_grid(herb_plot, herb_plot_cum_full,
                                  nrow = 4, labels = "AUTO")
 all_herb_plots_wleg <- plot_grid(all_herb_plots, leg, nrow = 2, rel_heights = c(15, 1))
 all_herb_plots_wleg
-ggsave("~/Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/herb_land_megaplot.pdf",
+ggsave("herb_land_megaplot.pdf",
        all_herb_plots_wleg, device = "pdf", width =6.5, height = 8)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -459,40 +450,8 @@ ggplot(landuse_chem_full_split, aes(x = Drainage, y = corrected_cumprop_develope
 
 
 
-
-
-
-
 ### Water chemistry statistics
 
-
-
-Cu_land_model <- lm(Cu ~ corrected_cumprop_developed + 
-                      corrected_prop_developed + 
-                      corrected_cumprop_herb +
-                      corrected_prop_herb, data = landuse_chem_full)
-shapiro.test(Cu_land_model$residuals)
-summary(Cu_land_model)
-vif(Cu_land_model)
-plot(Cu_land_model)
-
-fDOM_land_model <- lm(log(fDOM) ~ corrected_cumprop_developed + 
-                        corrected_prop_developed + 
-                        corrected_cumprop_herb +
-                        corrected_prop_herb, data = landuse_chem_full)
-shapiro.test(fDOM_land_model$residuals)
-summary(fDOM_land_model)
-vif(fDOM_land_model)
-plot(fDOM_land_model)
-
-NH3_land_model <- lm(log(NH3 + .001) ~ corrected_cumprop_developed + 
-                       corrected_prop_developed + 
-                       corrected_cumprop_herb +
-                       corrected_prop_herb, data = landuse_chem_full)
-shapiro.test(NH3_land_model$residuals)
-summary(NH3_land_model)
-vif(NH3_land_model)
-plot(NH3_land_model)
 
 PC1_land_model <- lm(PC1 ~ corrected_cumprop_developed + 
                        corrected_prop_developed + 
@@ -503,23 +462,14 @@ summary(PC1_land_model)
 vif(PC1_land_model)
 plot(PC1_land_model)
 
-PC1_land_model_500m_buff <- lm(PC1 ~ corrected_cumprop_developed + 
-                                corrected_prop_developed + 
-                                corrected_cumprop_herb +
-                                corrected_prop_herb + cum_total_km2, data = landuse_chem_500m)
-shapiro.test(PC1_land_model_500m_buff$residuals)
-summary(PC1_land_model_500m_buff)
-vif(PC1_land_model_500m_buff)
-plot(PC1_land_model_500m_buff)
-
-PC1_land_model_100m_buff <- lm(PC1 ~ corrected_cumprop_developed + 
-                                 corrected_prop_developed + 
-                                 corrected_cumprop_herb +
-                                 corrected_prop_herb + cum_total_km2, data = landuse_chem_100m)
-shapiro.test(PC1_land_model_100m_buff$residuals)
-summary(PC1_land_model_100m_buff)
-vif(PC1_land_model_100m_buff)
-plot(PC1_land_model_100m_buff)
+PC2_land_model <- lm(PC2 ~ corrected_cumprop_developed + 
+                       corrected_prop_developed + 
+                       corrected_cumprop_herb +
+                       corrected_prop_herb + cum_total_km2, data = landuse_chem_full)
+shapiro.test(PC2_land_model$residuals)
+summary(PC2_land_model)
+vif(PC2_land_model)
+plot(PC2_land_model)
 
 PC1_land_model_50m_buff <- lm(PC1 ~ corrected_cumprop_developed + 
                        corrected_prop_developed + 
@@ -530,33 +480,6 @@ summary(PC1_land_model_50m_buff)
 vif(PC1_land_model_50m_buff)
 plot(PC1_land_model_50m_buff)
 
-PC2_land_model <- lm(PC2 ~ corrected_cumprop_developed + 
-                       corrected_prop_developed + 
-                       corrected_cumprop_herb +
-                       corrected_prop_herb + cum_total_km2, data = landuse_chem_full)
-shapiro.test(PC2_land_model$residuals)
-summary(PC2_land_model)
-vif(PC2_land_model)
-plot(PC2_land_model)
-
-PC2_land_model_500m_buff <- lm(PC2 ~ corrected_cumprop_developed + 
-                                 corrected_prop_developed + 
-                                 corrected_cumprop_herb +
-                                 corrected_prop_herb + cum_total_km2, data = landuse_chem_500m)
-shapiro.test(PC2_land_model_500m_buff$residuals)
-summary(PC2_land_model_500m_buff)
-vif(PC2_land_model_500m_buff)
-plot(PC2_land_model_500m_buff)
-
-PC2_land_model_100m_buff <- lm(PC2 ~ corrected_cumprop_developed + 
-                                 corrected_prop_developed + 
-                                 corrected_cumprop_herb +
-                                 corrected_prop_herb + cum_total_km2, data = landuse_chem_100m)
-shapiro.test(PC2_land_model_100m_buff$residuals)
-summary(PC2_land_model_100m_buff)
-vif(PC2_land_model_100m_buff)
-plot(PC2_land_model_100m_buff)
-
 PC2_land_model_50m_buff <- lm(PC2 ~ corrected_cumprop_developed + 
                                 corrected_prop_developed + 
                                 corrected_cumprop_herb +
@@ -566,170 +489,21 @@ summary(PC2_land_model_50m_buff)
 vif(PC2_land_model_50m_buff)
 plot(PC2_land_model_50m_buff)
 
-PC3_land_model <- lm(PC3 ~ corrected_cumprop_developed + 
-                       corrected_prop_developed + 
-                       corrected_cumprop_herb +
-                       corrected_prop_herb, data = landuse_chem_full)
-shapiro.test(PC3_land_model$residuals)
-summary(PC3_land_model)
-vif(PC3_land_model)
-plot(PC3_land_model)
-
-PC3_land_model_50m_buff <- lm(PC3 ~ corrected_cumprop_developed + 
-                                corrected_prop_developed + 
-                                corrected_cumprop_herb +
-                                corrected_prop_herb, data = landuse_chem_50m)
-shapiro.test(PC3_land_model_50m_buff$residuals)
-summary(PC3_land_model_50m_buff)
-vif(PC3_land_model_50m_buff)
-plot(PC3_land_model_50m_buff)
-
-PC4_land_model <- lm(PC4 ~ corrected_cumprop_developed + 
-                       corrected_prop_developed + 
-                       corrected_cumprop_herb +
-                       corrected_prop_herb, data = landuse_chem_full)
-shapiro.test(PC4_land_model$residuals)
-summary(PC4_land_model)
-vif(PC4_land_model)
-plot(PC4_land_model)
-
-PC4_land_model_50m_buff <- lm(PC4 ~ corrected_cumprop_developed + 
-                                corrected_prop_developed + 
-                                corrected_cumprop_herb +
-                                corrected_prop_herb, data = landuse_chem_50m)
-shapiro.test(PC4_land_model_50m_buff$residuals)
-summary(PC4_land_model_50m_buff)
-vif(PC3_land_model_50m_buff)
-plot(PC4_land_model_50m_buff)
-
-### Statistical Tests for association between chemical PCs and land use
-
-PC_land_model<-lm(corrected_cumprop_developed ~ PC1 + PC2 + PC3 + PC4, 
-                  data = landuse_chem_50m)
-shapiro.test(PC_land_model$residuals)
-summary(PC_land_model)
-vif(PC_land_model)
-plot(PC_land_model)
-
+### Plots of association between chemical PCs and land use
 
 
 ggplot(landuse_chem_full, aes(x = corrected_cumprop_developed, y = PC1, color = Drainage)) +
   theme_bw() +
   geom_point()
 
-ggplot(landuse_chem_500m, aes(x = corrected_cumprop_developed, y = PC2, color = Drainage)) +
+ggplot(landuse_chem_full, aes(x = corrected_cumprop_developed, y = PC2, color = Drainage)) +
   theme_bw() +
   geom_point()
 
-ggplot(landuse_chem_100m, aes(x = corrected_cumprop_developed, y = PC3, color = Drainage)) +
+ggplot(landuse_chem_50m, aes(x = corrected_cumprop_developed, y = PC1, color = Drainage)) +
   theme_bw() +
   geom_point()
 
-ggplot(landuse_chem_50m, aes(x = corrected_cumprop_developed, y = PC4, color = Drainage)) +
+ggplot(landuse_chem_50m, aes(x = corrected_cumprop_developed, y = PC2, color = Drainage)) +
   theme_bw() +
   geom_point()
-
-cor.test(x = landuse_chem_full$corrected_cumprop_developed, y = landuse_chem_full$Cu)
-cor.test(x = landuse_chem_500m$corrected_cumprop_developed, y = landuse_chem_full$Cu)
-cor.test(x = landuse_chem_100m$corrected_cumprop_developed, y = landuse_chem_full$Cu)
-cor.test(x = landuse_chem_50m$corrected_cumprop_developed, y = landuse_chem_full$Cu)
-
-plotty <- landuse_chem_full %>% dplyr::select(corrected_prop_developed, 
-                                              corrected_cumprop_developed,
-                                              corrected_prop_herb,
-                                              corrected_cumprop_herb,
-                                              Cum_total,
-                                              PC1,
-                                              PC2)
-
-plot(plotty)
-
-plotty_50m <- landuse_chem_50m %>% dplyr::select(corrected_prop_developed, 
-                                              corrected_cumprop_developed,
-                                              corrected_prop_herb,
-                                              corrected_cumprop_herb,
-                                              Cum_total,
-                                              PC1,
-                                              PC2)
-
-plot(plotty_50m)
-
-
-### What if we do a site-wise PCA with land use variables?
-
-chem_land_pca_ready <- landuse_chem_full_split %>%
-  select(Drainage, Site.Code, corrected_prop_developed, corrected_prop_herb, corrected_prop_forest, corrected_cumprop_developed, corrected_cumprop_herb, corrected_cumprop_forest, Oxygen:Zn) %>%
-  mutate(prop_developed_50m = landuse_chem_50m_split$corrected_prop_developed, prop_herb_50m = landuse_chem_50m_split$corrected_prop_herb, prop_forest_50m = landuse_chem_50m_split$corrected_prop_forest, cumprop_developed_50m = landuse_chem_50m_split$corrected_cumprop_developed, cumprop_herb_50m = landuse_chem_50m_split$corrected_cumprop_herb, cumprop_forest_50m = landuse_chem_50m_split$corrected_cumprop_forest) %>%
-  drop_na()
-landchem.pca <- prcomp(chem_land_pca_ready[,3:55], center = TRUE,scale. = TRUE)
-
-summary(landchem.pca)
-landchem_pca_vars <- get_pca_var(landchem.pca)
-plot(landchem.pca$sdev^2 / sum(landchem.pca$sdev^2), xlab="Principal component", ylab="Proportion of variance explained", type='b')
-
-landchem_pca <- fviz_pca_biplot(landchem.pca, axes = c(1,2), repel = T, label = "var", alpha.var = 0.20, col.var = "black", mean.point = FALSE, habillage = chem_land_pca_ready$Drainage, title = NULL)  +
-  theme(legend.position = "inside",
-        legend.position.inside = c(.8, .8),
-        legend.background = element_rect()) +
-  scale_color_manual(values = section_colors) +
-  scale_fill_manual(values = section_colors) +
-  scale_shape_manual(values = section_shapes) +
-  labs(x = bquote("PC 1 ("*.(round(summary(landchem.pca)$importance[2,1],3)*100)*"%)"), y = bquote("PC 2 ("*.(round(summary(landchem.pca)$importance[2,2],3)*100)*"%)"))
-landchem_pca
-
-
-
-### Trying out RDA
-landuse_vars <- cbind(filter(landuse_fullwatershed, Site.Code %in% pca_ready_siteavgs$Site.Code)[c(25,27,29,31,33,42)], 
-                           filter(landuse_50m, Site.Code %in% pca_ready_siteavgs$Site.Code)[c(26,28,32,34)])
-rownames(landuse_vars) <- filter(landuse_fullwatershed, Site.Code %in% pca_ready_siteavgs$Site.Code)$Site.Code
-colnames(landuse_vars) <- c("corrected_prop_developed", "corrected_prop_herb", "corrected_cum_total",  "corrected_cumprop_developed", "corrected_cumprop_herb","Drainage", "corrected_prop_developed_50m", "corrected_prop_herb_50m", "corrected_cumprop_developed_50m", "corrected_cumprop_herb_50m")
-landuse_vars <- landuse_vars %>%
-  mutate(log_cum_area = log(corrected_cum_total))
-constraining_vars <-  landuse_vars %>%
-  select(Drainage, everything()) %>%
-  mutate(across(starts_with("corrected"), scale))
-#constraining_vars <- filter(landuse_fullwatershed, Site.Code %in% pca_ready_siteavgs$Site.Code)[c(25,26,27,31,32,33)]
-#rownames(constraining_vars) <- filter(landuse_fullwatershed, Site.Code %in% pca_ready_siteavgs$Site.Code)$Site.Code
-#colnames(constraining_vars) <- c("corrected_prop_developed", "corrected_prop_forest", "corrected_prop_herb", "corrected_cumprop_developed", "corrected_cumprop_forest", "corrected_cumprop_herb")
-
-allchem <- pca_ready_siteavgs[4:44]
-rownames(allchem) <- pca_ready_siteavgs$Site.Code
-
-enviro_vars<- pca_ready_siteavgs[4:44] %>%
-  scale()
-rownames(enviro_vars) <- pca_ready_siteavgs$Site.Code
-
-variable_variables <- allchem %>%
-  summarize(across(1:41, function(x) length(unique(x)) >= 20))
-enviro_vars <- enviro_vars[,as.logical(variable_variables[1,])] %>%
-#  scale()
-
-enviro_vars <- pca_ready_siteavgs %>%
-  ungroup() %>%
-  select(fDOM, NH3, PO4, Turbidity, Al, Cd, Cu, Fe, Pb, P, K, Mn, Conductivity, Sr, S, Na, Rb, Mg, Co, Ca, B, As) %>%
-  scale()
-rownames(enviro_vars) <- pca_ready_siteavgs$Site.Code
-
-chem_land.rda <- rda(formula = enviro_vars ~ corrected_cum_total +
-                       Drainage + 
-                       corrected_prop_developed +
-                       corrected_prop_herb + 
-                       corrected_cumprop_developed + 
-                       corrected_cumprop_herb + 
-                       corrected_prop_developed_50m + 
-                       corrected_prop_herb_50m + 
-                       corrected_cumprop_developed_50m + 
-                       corrected_cumprop_herb_50m, 
-                     data = landuse_vars)
-fwd.sel <- ordiR2step(rda(enviro_vars ~ 1, data = landuse_vars),
-                      scope = formula(chem_land.rda), direction = "forward", R2scope = TRUE, Pin = 0.99,
-                      pstep = 10000, trace = T)
-fwd.sel$call
-
-plot(chem_land.rda, choices = c(1,2), scaling = 3)
-summary(chem_land.rda)
-RsquareAdj(chem_land.rda)
-screeplot(chem_land.rda)
-tryit <- scores(chem_land.rda, display = c("sp", "lc"), scaling = 3, tidy = T)
-anova.cca(chem_land.rda)
