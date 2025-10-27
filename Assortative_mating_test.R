@@ -21,7 +21,7 @@ for(k in 1:length(females_CALL)){
   idxsub_CALL<-rbind(idxsub_CALL,cbind(rand))
   
 }
-mean(idxsub_CALL$hybrid_index.1)
+mean(idxsub_CALL$embryo_hybrid_index)
 mean(abs(idxsub_CALL$diff)) #.0655
 var(abs(idxsub_CALL$diff)) # .0046
 
@@ -35,12 +35,12 @@ for(k in 1:length(females_CALM)){
   idxsub_CALM<-rbind(idxsub_CALM,cbind(rand))
   
 }
-mean(idxsub_CALM$hybrid_index.1)
+mean(idxsub_CALM$embryo_hybrid_index)
 mean(abs(idxsub_CALM$diff)) # 0.02568919
 var(abs(idxsub_CALM$diff)) #  0.002615013
 
-mean(abs(maternal_offspring_index_CALL$hybrid_index.1 - maternal_offspring_index_CALL$hybrid_index))
-mean(abs(maternal_offspring_index_CALM$hybrid_index.1 - maternal_offspring_index_CALM$hybrid_index))
+mean(abs(maternal_offspring_index_CALL$embryo_hybrid_index - maternal_offspring_index_CALL$hybrid_index))
+mean(abs(maternal_offspring_index_CALM$embryo_hybrid_index - maternal_offspring_index_CALM$hybrid_index))
 
 
 n_occur <- data.frame(table(maternal_offspring_index_CALL$maternal_id))
@@ -123,7 +123,7 @@ for (x in 1:length(females_CALL)){
 par(mai=c(1.02,1.1,0.82,0.42))
 plot(CALL_maternal_index*100,(CALL_maternal_index-CALL_offspring_index)*100,col=rgb(11/255,166/255,255/255,alpha=0.5),xlim=c(0.15*100,1*100),ylim=c(-0.5*100,0.5*100),cex=2,pch=20,xlab="Maternal index (% malinche)",ylab="Maternal index\n- offspring index",cex.lab=1.3,cex.axis=1.3)
 points(idxsub_CALL$hybrid_index*100,(idxsub_CALL$diff)*100,pch=20,cex=2)
-mean(idxsub_CALL$hybrid_index.1)
+mean(idxsub_CALL$embryo_hybrid_index)
 
 
 abline(h=0,lty=2)
@@ -152,7 +152,7 @@ for (x in 1:length(females_CALM)){
 par(mai=c(1.02,1.1,0.82,0.42))
 plot(CALM_maternal_index*100,(CALM_maternal_index-CALM_offspring_index)*100,col=rgb(11/255,166/255,255/255,alpha=0.5),xlim=c(0.15*100,1*100),ylim=c(-0.5*100,0.5*100),cex=2,pch=20,xlab="Maternal index (% malinche)",ylab="Maternal index\n- offspring index",cex.lab=1.3,cex.axis=1.3)
 points(idxsub_CALM$hybrid_index*100,(idxsub_CALM$diff)*100,pch=20,cex=2)
-mean(idxsub_CALM$hybrid_index.1)
+mean(idxsub_CALM$embryo_hybrid_index)
 
 
 abline(h=0,lty=2)
@@ -260,14 +260,14 @@ ggsave("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structu
 brood_anc_variance <- maternal_offspring_index_CALL %>%
   group_by(maternal_id) %>%
   summarize(nobs = n(),
-            brood_var = var(hybrid_index.1),
-            brood_sd = sd(hybrid_index.1),
-            brood_range = max(hybrid_index.1) - min(hybrid_index.1),
+            brood_var = var(embryo_hybrid_index),
+            brood_sd = sd(embryo_hybrid_index),
+            brood_range = max(embryo_hybrid_index) - min(embryo_hybrid_index),
             maternal_hi = mean(hybrid_index))
 median(brood_anc_variance$brood_sd, na.rm = T)
 median(filter(brood_anc_variance, nobs > 2)$brood_sd, na.rm = T)
 
-ggplot(multiembryo_broods, aes(x = maternal_id, y = hybrid_index.1)) + 
+ggplot(multiembryo_broods, aes(x = maternal_id, y = embryo_hybrid_index)) + 
   geom_beeswarm() + 
 stat_summary(geom = "pointrange", fun.data = "mean_sd")
 
@@ -276,7 +276,7 @@ set.seed(77)
 paired_anc_variance <- lapply(1:1000, function(i) {    # Note that the # iterations is  smaller than the # possible pairs (1020)
   e1 <- slice_sample(multiembryo_broods, n = 1)
   e2 <- slice_sample(filter(maternal_offspring_index_CALL, maternal_id == e1$maternal_id, offspring_id != e1$offspring_id), n = 1)
-  return(var(c(e1$hybrid_index.1, e2$hybrid_index.1)))
+  return(var(c(e1$embryo_hybrid_index, e2$embryo_hybrid_index)))
 }) %>%
   unlist()
 

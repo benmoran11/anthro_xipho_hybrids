@@ -26,7 +26,7 @@ for(k in 1:length(females_CALM)){
   idxsub_CALM<-rbind(idxsub_CALM,cbind(rand))
   
 }
-mean(idxsub_CALM$hybrid_index.1)
+mean(idxsub_CALM$embryo_hybrid_index)
 mean(abs(idxsub_CALM$diff)) # 0.02568919
 var(abs(idxsub_CALM$diff)) #  0.002615013
 
@@ -41,7 +41,7 @@ for(k in 1:length(females_CALL)){
   idxsub_CALL<-rbind(idxsub_CALL,cbind(rand))
   
 }
-mean(idxsub_CALL$hybrid_index.1)
+mean(idxsub_CALL$embryo_hybrid_index)
 mean(abs(idxsub_CALL$diff)) # 0.06554228
 var(abs(idxsub_CALL$diff)) #  0.004638745
 
@@ -49,7 +49,7 @@ var(abs(idxsub_CALL$diff)) #  0.004638745
 
 sibling_sd_CALM <- maternal_offspring_index_CALM %>%
   group_by(maternal_id) %>%
-  summarize(sibling_sd = sd(hybrid_index.1))
+  summarize(sibling_sd = sd(embryo_hybrid_index))
 median(sibling_sd_CALM$sibling_sd, na.rm = T)
 quantile(sibling_sd_CALM$sibling_sd, probs = 0.05, na.rm = T) # ~= 0.002, same as CALL
 

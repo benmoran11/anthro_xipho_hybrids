@@ -4,16 +4,7 @@ options(scipen=999)
 
 ### Placeholder variables to be changed to match position of files locally
 infile <- "genotypes_PLAZ.tsv_plot.txt"
-ids<-"PLAZ_id_list"
 outfile<-"ancestry_tracts_PLAZ.txt"
-
-
-### Load list of individuals 
-indivs<-read.table(file=ids,sep="\t",head=TRUE)
-indivs<-indivs[,1]
-### Remove individuals that failed to sequence
-indivs<-indivs[!grepl("PLAZ_61_F_read_1.fastq", indivs)]
-indivs<-indivs[!grepl("PLAZ_64_F_read_1.fastq", indivs)]
 
 ### Load local ancestry data from PLAZ
 data<-read.table(file=infile,sep="\t",head=TRUE,as.is=T)
@@ -21,6 +12,8 @@ data<-read.table(file=infile,sep="\t",head=TRUE,as.is=T)
 data<-subset(data, select=-c(PLAZ_61_F_read_1.fastq,PLAZ_64_F_read_1.fastq))
 
 data_diploid <- filter(data, !(chrom %in% ("chr-21-Y")))
+
+indivs <- colnames(data)[-c(1,2)]
 
 # Now calculate tracts based on genotypes at each ancestry-informative marker
 alltracts <- {}
