@@ -64,7 +64,7 @@ water_chemistry <- as.data.frame(apply(water_chemistry, 2,
 
 pca_ready_nonmetals <- water_chemistry %>%
   filter(!(Site.Code %in% c("TLMC", "COAC")),             # Removing measurements from other watersheds
-         !(Drainage %in% c("Tanchachin","Claro"))) %>%.   # Removing measurements from other watersheds
+         !(Drainage %in% c("Tanchachin","Claro"))) %>%   # Removing measurements from other watersheds
   dplyr::select(-matches("_d$")) %>%
   dplyr::select(-matches("_t$"))%>%
   dplyr::select(-c(DO_sat, Temp, fDOM_RFU, DOC_lab, N_lab, NO3, Calcium_Hardness, Color_Apparent, Color_True, Sulfite, Sulfide,
@@ -83,6 +83,9 @@ plot(wc.pca$sdev^2 / sum(wc.pca$sdev^2), xlab="Principal component", ylab="Propo
 nonmetal_pca <- fviz_pca_biplot(wc.pca, axes = c(1,2), repel = T, label = "var", alpha.var = 0.20, col.var = "black", mean.point = FALSE, habillage = pca_ready_nonmetals$Drainage, title = NULL)  +
   theme(legend.position = "none",
         legend.position.inside = c(.35, .2),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill = NA),
         legend.background = element_rect()) +
   scale_color_manual(values = section_colors) +
   scale_fill_manual(values = section_colors) +
@@ -124,6 +127,9 @@ plot(wc.pca.metals$sdev^2 / sum(wc.pca.metals$sdev^2), xlab="Principal component
 metal_pca <- fviz_pca_biplot(wc.pca.metals, axes = c(1,2), repel = T, label = "var", alpha.var = 0.20, mean.point = FALSE, col.var = "black", habillage = pca_ready_metals$Drainage, title = NULL)+
   theme(legend.position = "none",
         legend.position.inside = c(.13, .83),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill = NA),
         legend.background = element_rect()) + 
   scale_color_manual(values = section_colors) +
   scale_shape_manual(values = section_shapes) +

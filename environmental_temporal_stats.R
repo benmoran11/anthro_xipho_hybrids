@@ -166,6 +166,33 @@ ggsave("alltime_monthly_PCAs.png",
        alltime_monthly_PCAs, width = 6.5, height = 8)
 
 
+#### New version showing both section and month
+
+nonmetal_pca_Calnali_sectionxmonth <- fviz_pca_biplot(wc.pca.nonmetals.Calnali, axes = c(1,2), repel = T, label = "var", alpha.var = 0.20, mean.point = FALSE, col.var = "black", habillage = pca_nonmetals_Calnali$month, title = NULL)+
+  theme(legend.position = "inside",
+        legend.position.inside = c(.87, .23),
+        legend.background = element_rect()) +
+  scale_color_manual(values = section_colors) +
+  scale_shape_discrete(labels = c("Feb","May-Jun","Sep")) +
+  guides(color="none", shape = guide_legend(title="Month")) +
+  labs(x = bquote("PC 1 ("*.(round(summary(wc.pca.nonmetals.Calnali)$importance[2,1],3)*100)*"%)"), y = bquote("PC 2 ("*.(round(summary(wc.pca.nonmetals.Calnali)$importance[2,2],3)*100)*"%)"))+
+  geom_point(aes(x = wc.pca.nonmetals.Calnali$x[,1], y = wc.pca.nonmetals.Calnali$x[,2], color = pca_nonmetals_Calnali$Drainage, shape = pca_nonmetals_Calnali$month))
+nonmetal_pca_Calnali_sectionxmonth
+
+metal_pca_alltime_sectionxmonth <- fviz_pca_biplot(wc.pca.metals.alltime, axes = c(1,2), repel = T, label = "var", alpha.var = 0.20, mean.point = FALSE, col.var = "black", habillage = pca_metals_alltime$month, title = NULL)+
+  theme(legend.position = "inside",
+        legend.position.inside = c(.16, .25),
+        legend.background = element_rect()) +
+  scale_color_manual(values = section_colors) +
+  scale_shape_discrete(labels = c("Feb","May-Jun","Sep")) +
+  guides(color=guide_legend(title="Month"), shape = "none")  +
+  labs(x = bquote("PC 1 ("*.(round(summary(wc.pca.metals.alltime)$importance[2,1],3)*100)*"%)"), y = bquote("PC 2 ("*.(round(summary(wc.pca.metals.alltime)$importance[2,2],3)*100)*"%)")) +
+  geom_point(aes(x = wc.pca.metals.alltime$x[,1], y = wc.pca.metals.alltime$x[,2], color = pca_metals_alltime$Drainage, shape = pca_metals_alltime$month))
+metal_pca_alltime_sectionxmonth
+
+supp_fig_temporal_PCA <- plot_grid(nonmetal_pca_Calnali_sectionxmonth, metal_pca_alltime_sectionxmonth, labels = c("A","B"),nrow = 2, rel_heights = c(1,2))
+ggsave("calnali_nonmetals_alldrainage_metals_monthly.pdf",
+       supp_fig_temporal_PCA, width = 6.5, height = 8)
 time_sampling <- data.frame(pca_metals_alltime, PC1 = wc.pca.metals.alltime$x[,1], PC2 = wc.pca.metals.alltime$x[,2])
 ggplot(filter(time_sampling, month == "Sep", year == "22"), aes(x = samp_datetime, y = PC2, color = Drainage)) + geom_point()
 ggplot(filter(time_sampling, month == "Sep", year == "24"), aes(x = samp_datetime, y = PC2, color = Drainage)) + geom_point()

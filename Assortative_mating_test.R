@@ -129,6 +129,25 @@ mean(idxsub_CALL$embryo_hybrid_index)
 abline(h=0,lty=2)
 legend("topleft", c("real data","random mating"), pch=c(20,20,17),cex=1.25,pt.cex=1.2,col=c("black",rgb(11/255,166/255,255/255,alpha=0.5)),box.col="white")
 
+CALL_mother_embryo_example <- data.frame(maternal = c(CALL_maternal_index*100, idxsub_CALL$hybrid_index*100),
+                                         diff = c((CALL_maternal_index-CALL_offspring_index)*100,(idxsub_CALL$diff)*100),
+                                         type = rep(c("Random mating","Real data"), each = length(CALL_maternal_index)))
+
+
+CALL_mother_embryo_example_plot <- ggplot(CALL_mother_embryo_example, aes(x = maternal, y = diff, color = type)) +
+  theme_bw() +
+  theme(legend.position = "inside",
+        legend.position.inside = c(.3, .875),
+        legend.title = element_blank(),
+        legend.margin = margin(t = 2, r = 2, b = 2, l = 2, unit = "pt")) +
+  lims(x = c(15, 100), y = c(-40,40)) +
+  scale_color_manual(values = c(rgb(11/255,166/255,255/255,alpha=0.5),"black")) +
+  labs(x = expression(paste("Maternal index (%"~italic(malinche),")",sep ="")), y = "Maternal - offspring index") +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  geom_point()
+CALL_mother_embryo_example_plot
+ggsave("real_vs_simulatedrandom_matings_CALL.pdf", 
+       CALL_mother_embryo_example_plot, device = "pdf", width = 3, height = 3, units = "in")
 
 ###############
 # Same for CALM
@@ -159,6 +178,46 @@ abline(h=0,lty=2)
 legend("topleft", c("real data","random mating"), pch=c(20,20,17),cex=1.25,pt.cex=1.2,col=c("black",rgb(11/255,166/255,255/255,alpha=0.5)),box.col="white")
 
 
+CALM_mother_embryo_example <- data.frame(maternal = c(CALM_maternal_index*100, idxsub_CALM$hybrid_index*100),
+                                         diff = c((CALM_maternal_index-CALM_offspring_index)*100,(idxsub_CALM$diff)*100),
+                                         type = rep(c("Random mating","Real data"), each = length(CALM_maternal_index)))
+
+
+CALM_mother_embryo_example_plot <- ggplot(CALM_mother_embryo_example, aes(x = maternal, y = diff, color = type)) +
+  theme_bw() +
+  theme(legend.position = "inside",
+        legend.position.inside = c(.70, .15),
+        legend.title = element_blank()) +
+  lims(x = c(15, 100), y = c(-40,40)) +
+  scale_color_manual(values = c(rgb(11/255,166/255,255/255,alpha=0.5),"black")) +
+  labs(x = expression(paste("Maternal index (%"~italic(malinche),")",sep ="")), y = "Maternal - offspring index") +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  geom_point()
+CALM_mother_embryo_example_plot
+ggsave("real_vs_simulatedrandom_matings_CALM.pdf", 
+       CALM_mother_embryo_example_plot, device = "pdf", width = 3, height = 3, units = "in")
+
+
+combined_examples = rbind(CALL_mother_embryo_example, CALM_mother_embryo_example) %>%
+  mutate(pop = rep(c("Downstream","Upstream"),c(nrow(CALL_mother_embryo_example),nrow(CALM_mother_embryo_example))))
+combined_examples$pop = factor(combined_examples$pop, levels = c("Upstream","Downstream"))
+combined_mother_embryo_example_plot <- ggplot(combined_examples, aes(x = maternal, y = diff, color = type)) +
+  facet_wrap(~pop) +
+  theme_bw() +
+  theme(legend.position = "inside",
+        legend.position.inside = c(.15, .85),
+        legend.title = element_blank(),
+        strip.text = element_text(size = 12),
+        strip.background = element_rect(fill = c("white")),
+        legend.margin = margin(t = 2, r = 2, b = 2, l = 2, unit = "pt")) +
+  lims(x = c(15, 100), y = c(-40,40)) +
+  scale_color_manual(values = c(rgb(11/255,166/255,255/255,alpha=0.5),"black")) +
+  labs(x = expression(paste("Maternal index (%"~italic(malinche),")",sep ="")), y = "Maternal - offspring index") +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  geom_point()
+combined_mother_embryo_example_plot
+ggsave("real_vs_simulatedrandom_matings_CALLvCALM.pdf", 
+       combined_mother_embryo_example_plot, device = "pdf", width = 6, height = 3, units = "in")
 
 
 
@@ -248,7 +307,7 @@ rand_diff <- ggplot(cbind(sim = 1:1000, diff = CALL_all_sims), aes(x = CALL_all_
   #geom_density(data = data.frame(CALM_mother_offspring_resampled_means), aes(x = CALM_mother_offspring_resampled_means), color = "salmon")
 
 rand_diff
-ggsave("Swordtail Dropbox/Schumer_lab_resources/Project_files/Population_structure_breakdown/Figures/maternal_embryo_diff_random_true.pdf",
+ggsave("maternal_embryo_diff_random_true.pdf",
        rand_diff, width = 3, height = 3)
 
 

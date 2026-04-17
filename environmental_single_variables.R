@@ -1,6 +1,7 @@
 library(tidyverse)
 library(cowplot)
 library(car)
+library(scales)
 library(vegan)
 set_null_device("cairo")
 
@@ -125,17 +126,20 @@ DOMplot <- ggplot(water_chemistry_nosplit,
   theme_bw() +
   theme(axis.title = element_text(size = 24),
         axis.text = element_text(size = 16),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.title = element_text(size = 24),
         legend.text = element_text(size = 20),
         legend.position = "inside",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Dissolved Organic Matter (QSU)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = 65, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 DOMplot
-ggsave("fDOM_riverkm_multiriver.pdf",
+ggsave("../Figures/fDOM_riverkm_multiriver.pdf",
        DOMplot, device = "pdf", width = 7, height = 5.5)
 
 nh3plot <- ggplot(filter(water_chemistry_nosplit, Drainage %in% c("Calnali", "Pochula", "Huazalingo", "Conzintla"), !(month == "Jun")),
@@ -145,10 +149,13 @@ nh3plot <- ggplot(filter(water_chemistry_nosplit, Drainage %in% c("Calnali", "Po
   theme(axis.title = element_text(size = 24),
         axis.text = element_text(size = 16),
         legend.title = element_text(size = 24),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.position = "inside",
         legend.text = element_text(size = 20),
         legend.position.inside = c(.25, .8)) +
   labs(x = "Stream Distance (km)", y = "Ammonia (mg/L N)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = 0, ymax = .75, alpha = .1) +
   #lims(y = c(0,5)) +
   scale_color_manual(values = river_colors) +
   scale_y_log10(labels = label_number(accuracy = .01)) +
@@ -157,7 +164,7 @@ nh3plot <- ggplot(filter(water_chemistry_nosplit, Drainage %in% c("Calnali", "Po
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 nh3plot
-ggsave("nh3_riverkm_multiriver.pdf",
+ggsave("../Figures/nh3_riverkm_multiriver.pdf",
        nh3plot, device = "pdf", width = 7, height = 5.5)
 
 
@@ -200,20 +207,23 @@ Cuplot <- ggplot(filter(water_chemistry_nosplit, Cu_t != .00025),
   theme_bw() +
   theme(axis.title = element_text(size = 24),
         axis.text = element_text(size = 16),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.title = element_text(size = 24),
         legend.text = element_text(size = 20),
         legend.position = "inside",
         legend.position.inside = c(.25, .8)) +
   scale_color_manual(values = river_colors, drop = F) +
   labs(x = "Stream Distance (km)", y = "Total Copper (ug/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = 1.5, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage", override.aes = list(shape = 16))) +
   geom_hline(yintercept = 0.5, lty = "dashed", color = "darkgray", linewidth = 2) +
   geom_point(data = Cu_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
-  annotate("rect", xmin = -5, xmax = 25, ymin = 0, ymax = .0005 * 1000, alpha = .5,fill = "white") +
+  annotate("rect", xmin = -5, xmax = 25, ymin = -Inf, ymax = .0005 * 1000, alpha = .5,fill = "white") +
   geom_jitter(aes(color = Drainage), size = 2)
   Cuplot
-ggsave("Cu_riverkm_multiriver.pdf",
+ggsave("../Figures/Cu_riverkm_multiriver.pdf",
        Cuplot, device = pdf, width = 7, height = 5.5)
 
 
@@ -226,24 +236,72 @@ turbplot <- ggplot(water_chemistry_nosplit,
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(
-        legend.position = "inside",
+        legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "Stream Distance (km)", y = "Turbidity (NTU)") +
+  labs(x = "Stream Distance (km)", y = expression(atop("","Turbidity (NTU)"))) +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 turbplot
+
+DOplot <- ggplot(water_chemistry_nosplit,
+                   aes(x = dist_from_first_site_km, y = DO_conc)) +
+  coord_cartesian(x = c(0, 20)) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position.inside = c(.2, .8)) +
+  scale_color_manual(values = river_colors) +
+  labs(x = "Stream Distance (km)", y = expression(atop("Dissolved O"[2],"(mg/L)"))) +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
+  geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
+  guides(color=guide_legend(title="Drainage")) +
+  geom_jitter(aes(color = Drainage)) #+
+DOplot
+
+DOCplot <- ggplot(water_chemistry_nosplit,
+                 aes(x = dist_from_first_site_km, y = DOC_lab)) +
+  coord_cartesian(x = c(0, 20)) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position.inside = c(.2, .8)) +
+  scale_color_manual(values = river_colors) +
+  labs(x = "Stream Distance (km)", y = expression(atop("Dissolved Organic   ","Carbon (mg/L)"))) +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
+  geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
+  guides(color=guide_legend(title="Drainage")) +
+  geom_jitter(aes(color = Drainage)) #+
+DOCplot
 
 no2plot <- ggplot(water_chemistry_nosplit,
                    aes(x = dist_from_first_site_km, y = NO2)) +
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(
-    legend.position = "inside",
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
     legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Nitrite (mg/L N)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -260,12 +318,15 @@ condplot <- ggplot(water_chemistry_nosplit,
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(axis.text.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         #axis.ticks.x = element_blank(),
         axis.title.x = element_blank(),
     legend.position = "none",
     legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Conductivity\n(μS/cm)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -276,12 +337,15 @@ alkplot <- ggplot(water_chemistry_nosplit,
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(axis.text.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         #axis.ticks.x = element_blank(),
         axis.title.x = element_blank(),
     legend.position = "none",
     legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = expression(atop("Alkalinity","(mg"~CaCO[3]~"Eq.)"))) +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = 200, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -291,28 +355,43 @@ hardplot <- ggplot(water_chemistry_nosplit,
                   aes(x = dist_from_first_site_km, y = Total_Hardness)) +
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
-  theme(axis.text.x = element_blank(),
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         #axis.ticks.x = element_blank(),
-        axis.title.x = element_blank(),
-    legend.position = "none",
-    legend.position.inside = c(.9, .2)) +
+        legend.position = "none",
+        legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = expression(atop("Hardness","(mg"~CaCO[3]~"Eq.)"))) +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
 hardplot
 
-pHplot <- ggplot(water_chemistry_nosplit,
+dummypHplot <- ggplot(water_chemistry_nosplit,
                  aes(x = dist_from_first_site_km, y = pH)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+    legend.direction = "horizontal") +
+  scale_color_manual(values = river_colors) +
+  geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
+  guides(color=guide_legend(title="Drainage")) +
+  geom_jitter(aes(color = Drainage))
+dummypHplot
+
+pHplot <- ggplot(water_chemistry_nosplit,
+                      aes(x = dist_from_first_site_km, y = pH)) +
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
     legend.direction = "horizontal",
     legend.position.inside = c(.9, .2)) +
   scale_color_manual(values = river_colors) +
-  labs(x = "Stream Distance (km)", y = "pH") +
+  labs(x = "Stream Distance (km)", y = expression(atop("","pH"))) +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage))
@@ -321,6 +400,30 @@ pHplot
 nonmetals_other <- plot_grid(condplot, alkplot, hardplot, pHplot, nrow = 4, labels = "AUTO", rel_heights = c(1,1,1,1.5), align = "v")
 ggsave("cond_alk_hard_pH_riverkm_multiriver.png",
        nonmetals_other, device = "png", width =6.5, height = 8)
+
+get_legend_35 <- function(plot, legend_number = 1) {
+  # find all legend candidates
+  legends <- get_plot_component(plot, "guide-box", return_all = TRUE)
+  # find non-zero legends
+  idx <- which(vapply(legends, \(x) !inherits(x, "zeroGrob"), TRUE))
+  # return either the chosen or the first non-zero legend if it exists,
+  # and otherwise the first element (which will be a zeroGrob) 
+  if (length(idx) >= legend_number) {
+    return(legends[[idx[legend_number]]])
+  } else if (length(idx) >= 0) {
+    return(legends[[idx[1]]])
+  } else {
+    return(legends[[1]])
+  }
+}
+
+nonmetal_leg <- get_legend_35(dummypHplot)
+nonmetal_leg_plot <- ggdraw(nonmetal_leg)
+nonmetal_leg_plot
+nonmetals_all <- plot_grid(turbplot, no2plot, DOplot, DOCplot, condplot, alkplot, hardplot, pHplot, nrow = 4, labels = "AUTO", rel_heights = c(1,1,1,1.5), align = "v")
+nonmetals_all_wleg <- plot_grid(nonmetals_all, nonmetal_leg_plot, nrow = 2, rel_heights = c(15, 1))
+ggsave("../Figures/turb_no2_DO_DOC_cond_alk_hard_pH_riverkm_multiriver.png",
+       nonmetals_all_wleg, device = "png", width =6.5, height = 8)
 
 # Fig S23
 
@@ -339,11 +442,14 @@ Feplot <- ggplot(filter(water_chemistry_nosplit, Fe_t != 0.005),
   theme_bw() +
   theme(axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         axis.title.x = element_blank(),
-        legend.position = "inside",
         legend.position.inside = c(.25, .72)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Iron (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_hline(yintercept = 0.01 * 1000, lty = "dashed", color = "darkgray") +
@@ -361,10 +467,13 @@ Alplot <- ggplot(filter(water_chemistry_nosplit),
   theme(axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
         axis.title.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Aluminum (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -383,11 +492,14 @@ Pbplot <- ggplot(filter(water_chemistry_nosplit, Pb_t != 0.00005/2),
   theme_bw() +
   theme(axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         axis.title.x = element_blank(),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Lead (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Pb_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
@@ -409,11 +521,14 @@ Tiplot <- ggplot(filter(water_chem_censored_raw, !grepl("<", Ti_t)),
   theme_bw() +
   theme(axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         axis.title.x = element_blank(),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Titanium (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Ti_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
@@ -434,13 +549,16 @@ Znplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",Zn_t)),
                  aes(x = dist_from_first_site_km, y = as.numeric(Zn_t) * 1000)) +
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
-  theme(#axis.text.x = element_blank(),
+  theme(        panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
-        #axis.title.x = element_blank(),
+        axis.title.x = element_blank(),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Zinc (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Zn_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
@@ -461,13 +579,16 @@ Coplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",Co_t)),
                  aes(x = dist_from_first_site_km, y = as.numeric(Co_t) * 1000)) +
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
-  theme(#axis.text.x = element_blank(),
+  theme(axis.text.x = element_blank(),
     #axis.ticks.x = element_blank(),
-    #axis.title.x = element_blank(),
+    axis.title.x = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
     legend.position = "none",
     legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Cobalt (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Co_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
@@ -498,10 +619,13 @@ Cdplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",Cd_t)),
   theme(axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
         axis.title.x = element_blank(),
-    legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "none",
     legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Cadmium (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_point(data = Cd_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
@@ -526,10 +650,13 @@ Mnplot <- ggplot(filter(water_chemistry_nosplit),
   theme(axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
         axis.title.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Manganese (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -550,10 +677,13 @@ Asplot <- ggplot(filter(water_chem_censored_raw, !grepl("<",As_t)),
   theme(axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
         axis.title.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Arsenic (μg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(data = water_chemistry_nosplit, aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_point(data = As_censored, aes(x = dist_from_first_site_km, y = dummy_val * 1000, color = Drainage), shape = 16, size = 2) +
@@ -568,13 +698,16 @@ Caplot <- ggplot(filter(water_chemistry_nosplit),
                  aes(x = dist_from_first_site_km, y = Ca_t)) +
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
-  theme(axis.text.x = element_blank(),
+  theme(#axis.text.x = element_blank(),
         #axis.ticks.x = element_blank(),
-        axis.title.x = element_blank(),
+        #axis.title.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         legend.position = "none",
         legend.position.inside = c(.2, .8)) +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Calcium (mg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -587,10 +720,13 @@ Mgplot <- ggplot(filter(water_chemistry_nosplit),
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(
-        legend.position = "none",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
         legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Magnesium (mg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -603,10 +739,13 @@ Siplot <- ggplot(filter(water_chemistry_nosplit),
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
     legend.position = "none",
     legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Silicon (mg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -617,10 +756,13 @@ dummy_Siplot <- ggplot(filter(water_chemistry_nosplit),
   coord_cartesian(x = c(0, 20)) +
   theme_bw() +
   theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
     legend.position = "bottom",
     legend.direction = "horizontal") +
   scale_color_manual(values = river_colors) +
   labs(x = "Stream Distance (km)", y = "Silicon (mg/L)") +
+  annotate("rect", xmin = 5.5, xmax = 8.5, ymin = -Inf, ymax = Inf, alpha = .1) +
   geom_smooth(aes(color = Drainage, group = Drainage), se = F) +
   guides(color=guide_legend(title="Drainage")) +
   geom_jitter(aes(color = Drainage)) #+
@@ -650,6 +792,13 @@ metals_other_wleg <- plot_grid(metals_other, leg, nrow = 2, rel_heights = c(15, 
 metals_other_wleg
 ggsave("Cd_Mn_As_Ca_Mg_riverkm_multiriver.png",
        metals_other_wleg, device = "png", width =6.5, height = 8)
+
+
+all_metals <- plot_grid(Feplot, Alplot, Pbplot, Tiplot, Znplot, Coplot, Cdplot, Mnplot, Asplot, Caplot, Mgplot, Siplot, nrow = 4, labels = "AUTO", rel_heights = c(1,1,1,1.25), align = "v")
+all_metals
+all_metals_wleg <- plot_grid(all_metals, leg, nrow = 2, rel_heights = c(20, 1))
+ggsave("../Figures/Fe_Al_Ti_Zn_Co_Cd_Mn_As_Ca_Mg_riverkm_multiriver.png",
+       all_metals_wleg, device = "png", width =10, height = 10.6666)
 
 # Rough plots of each ICP/MS variable, for the curious
 allICPMS_plots <- map(names(water_chemistry_nosplit)[grepl("_t", names(water_chemistry_nosplit))], function(name) {
